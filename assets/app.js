@@ -7,21 +7,24 @@
 
   // -----------------------------------------------------------------
   // Column alias tables — flexible header matching across the shapes
-  // we know about (Zendesk CSV export, Jira CSV/XLSX export, and a
-  // couple of Slovenian header variants) so a slightly different export
-  // still imports cleanly instead of silently dropping columns.
+  // we know about (Zendesk CSV, Jira/aug_fromdb XLSX, Slovenian variants).
+  // All lookups are done on lowercased-trimmed header strings.
   // -----------------------------------------------------------------
   var ALIASES = {
-    key: ["id", "ticket id", "#", "key", "issue key", "ticket key"],
-    url: ["url jira", "jira url", "url"],
-    status: ["ticket status", "status", "stanje"],
-    subject: ["subject", "summary", "title", "naslov"],
-    subjectFallback: ["product"], // the Jira export we've seen puts the subject text here
-    partner: ["requester", "customer", "requested by", "reporter", "partner", "stranka"],
-    priority: ["priority", "prioriteta"],
-    created: ["requested", "created", "request date", "created date", "ustvarjen"],
-    updated: ["updated", "last updated", "updated at", "posodobljen"],
-    resolved: ["resolved", "resolved at", "resolution date", "rešen", "resen"],
+    key:        ["id", "ticket id", "#", "key", "issue key", "ticket key", "ticket_key", "jira key"],
+    url:        ["url jira", "jira url", "url"],
+    status:     ["ticket status", "status", "stanje"],
+    subject:    ["subject", "summary", "title", "naslov"],
+    subjectFallback: ["product"],
+    description:["description", "opis", "body", "details", "comment"],
+    issueType:  ["issue_type", "issue type", "type", "issuetype"],
+    partner:    ["requester", "customer", "requested by", "reporter", "partner", "stranka",
+                 "partner_name", "casino_id", "partner name"],
+    partnerSuggestion: ["partner_name_suggestion_for_review"],
+    priority:   ["priority", "prioriteta"],
+    created:    ["requested", "created", "request date", "created date", "ustvarjen", "created_at"],
+    updated:    ["updated", "last updated", "updated at", "posodobljen", "updated_at"],
+    resolved:   ["resolved", "resolved at", "resolution date", "rešen", "resen", "resolved_at"],
     nextAction: ["next action", "next steps", "naslednji korak"]
   };
 
@@ -38,6 +41,7 @@
     if (!raw) return null;
     var t = String(raw).trim();
     if (!t || t === "-" || t === "'-") return null;
+    // Handle "2026-08-02 08:00:28" format from Jira DB export
     var d = new Date(t.replace(" ", "T"));
     if (!isNaN(d.getTime())) return d;
     d = new Date(t);
@@ -77,17 +81,20 @@
     var lowerHeaders = Object.keys(headerMap);
 
     var col = {
-      key: findCol(lowerHeaders, ALIASES.key),
-      url: findCol(lowerHeaders, ALIASES.url),
-      status: findCol(lowerHeaders, ALIASES.status),
-      subject: findCol(lowerHeaders, ALIASES.subject),
-      subjectFallback: findCol(lowerHeaders, ALIASES.subjectFallback),
-      partner: findCol(lowerHeaders, ALIASES.partner),
-      priority: findCol(lowerHeaders, ALIASES.priority),
-      created: findCol(lowerHeaders, ALIASES.created),
-      updated: findCol(lowerHeaders, ALIASES.updated),
-      resolved: findCol(lowerHeaders, ALIASES.resolved),
-      nextAction: findCol(lowerHeaders, ALIASES.nextAction)
+      key:              findCol(lowerHeaders, ALIASES.key),
+      url:              findCol(lowerHeaders, ALIASES.url),
+      status:           findCol(lowerHeaders, ALIASES.status),
+      subject:          findCol(lowerHeaders, ALIASES.subject),
+      subjectFallback:  findCol(lowerHeaders, ALIASES.subjectFallback),
+      description:      findCol(lowerHeaders, ALIASES.description),
+      issueType:        findCol(lowerHeaders, ALIASES.issueType),
+      partner:          findCol(lowerHeaders, ALIASES.partner),
+      partnerSuggestion:findCol(lowerHeaders, ALIASES.partnerSuggestion),
+      priority:         findCol(lowerHeaders, ALIASES.priority),
+      created:          findCol(lowerHeaders, ALIASES.created),
+      updated:          findCol(lowerHeaders, ALIASES.updated),
+      resolved:         findCol(lowerHeaders, ALIASES.resolved),
+      nextAction:       findCol(lowerHeaders, ALIASES.nextAction)
     };
 
     var out = [];
@@ -99,39 +106,35 @@
         return v === undefined || v === null ? "" : String(v).trim();
       }
 
-      var idRaw = g("key");
+      var idRaw  = g("key");
       var urlRaw = g("url");
-      var partnerRaw = g("partner");
+      var partnerRaw = g("partner") || g("partnerSuggestion");
       var subjectRaw = g("subject") || g("subjectFallback");
 
-      // Skip fully-blank spreadsheet rows (common in exported .xlsx files,
-      // which often carry formatting far past the last real row of data).
       if (!idRaw && !urlRaw && !partnerRaw && !subjectRaw) return;
 
       var key = idRaw || extractKeyFromUrl(urlRaw) || "";
-      if (!key) {
-        // No stable identifier available — fall back to a positional key.
-        // Manual edits on these rows may not line up cleanly across re-imports.
-        key = "row-" + (idx + 1);
-      }
+      if (!key) key = "row-" + (idx + 1);
 
-      var subject = g("subject") || g("subjectFallback") || "(brez naslova)";
-      var createdRaw = g("created");
-      var updatedRaw = g("updated");
-      var resolvedRaw = g("resolved");
+      var subject  = subjectRaw || "(brez naslova)";
+      var descFull = g("description");
+      // Truncate to 600 chars for storage efficiency; enough for categorization and preview.
+      var description = descFull.slice(0, 600);
 
       out.push({
-        key: key,
-        status: g("status") || "—",
-        subject: subject,
-        partner: g("partner") || "—",
-        priority: cleanPriority(g("priority")),
-        createdRaw: createdRaw,
-        createdDate: parseDate(createdRaw),
-        updatedRaw: updatedRaw,
-        updatedDate: parseDate(updatedRaw),
-        resolvedRaw: resolvedRaw,
-        resolvedDate: parseDate(resolvedRaw),
+        key:              key,
+        status:           g("status") || "—",
+        subject:          subject,
+        description:      description,
+        issueType:        g("issueType") || "",
+        partner:          partnerRaw || "—",
+        priority:         cleanPriority(g("priority")),
+        createdRaw:       g("created"),
+        createdDate:      parseDate(g("created")),
+        updatedRaw:       g("updated"),
+        updatedDate:      parseDate(g("updated")),
+        resolvedRaw:      g("resolved"),
+        resolvedDate:     parseDate(g("resolved")),
         importedNextAction: g("nextAction") || ""
       });
     });
@@ -154,7 +157,7 @@
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
-      /* storage unavailable or full — state still works for this session */
+      /* storage full — state still works for this session */
     }
   }
 
@@ -162,10 +165,10 @@
   // State
   // -----------------------------------------------------------------
   var state = {
-    tickets: [], // normalized rows (dates are re-hydrated Date objects at load time)
+    tickets: [],
     filename: null,
     loadedAt: null,
-    overrides: {}, // key -> {category, categorySource, categoryConfidence, partnerOverride, nextAction, updatedAt}
+    overrides: {},
     categories: [],
     sortKey: "idleDays",
     sortDir: "desc",
@@ -176,16 +179,16 @@
   };
 
   var COLUMNS = [
-    { key: "key", label: "ID", type: "str" },
-    { key: "status", label: "Status", type: "str" },
-    { key: "subject", label: "Naslov", type: "str" },
-    { key: "partnerShown", label: "Partner", type: "str" },
-    { key: "categoryShown", label: "Kategorija", type: "str" },
-    { key: "nextActionShown", label: "Next action", type: "str" },
-    { key: "createdDate", label: "Ustvarjen", type: "date" },
-    { key: "updatedDate", label: "Posodobljen", type: "date" },
-    { key: "ageDays", label: "Age", type: "num" },
-    { key: "idleDays", label: "Idle", type: "num" }
+    { key: "key",           label: "ID",          type: "str" },
+    { key: "status",        label: "Status",       type: "str" },
+    { key: "subject",       label: "Naslov",       type: "str" },
+    { key: "partnerShown",  label: "Partner",      type: "str" },
+    { key: "categoryShown", label: "Kategorija",   type: "str" },
+    { key: "nextActionShown",label: "Next action", type: "str" },
+    { key: "createdDate",   label: "Ustvarjen",    type: "date" },
+    { key: "updatedDate",   label: "Posodobljen",  type: "date" },
+    { key: "ageDays",       label: "Age",          type: "num" },
+    { key: "idleDays",      label: "Idle",         type: "num" }
   ];
 
   function daysBetween(then, now) {
@@ -200,43 +203,51 @@
   function withDerived(list, now) {
     return list.map(function (t) {
       var ov = overrideFor(t.key);
-      var categoryName = ov && ov.category !== undefined ? ov.category : null;
-      var categorySource = ov ? ov.categorySource : null;
-      var partnerShown = (ov && ov.partnerOverride) ? ov.partnerOverride : t.partner;
-      var nextActionShown = (ov && ov.nextAction !== undefined && ov.nextAction !== "")
-        ? ov.nextAction
-        : t.importedNextAction;
-      var resTime = (t.createdDate && t.resolvedDate) ? daysBetween(t.createdDate, t.resolvedDate.getTime()) : null;
+      var categoryName       = ov && ov.category !== undefined ? ov.category : null;
+      var categorySource     = ov ? ov.categorySource : null;
+      var partnerShown       = (ov && ov.partnerOverride) ? ov.partnerOverride : t.partner;
+      var nextActionShown    = (ov && ov.nextAction !== undefined && ov.nextAction !== "")
+                                 ? ov.nextAction : t.importedNextAction;
+      var resTime = (t.createdDate && t.resolvedDate)
+                    ? daysBetween(t.createdDate, t.resolvedDate.getTime()) : null;
       return Object.assign({}, t, {
-        ageDays: daysBetween(t.createdDate, now),
-        idleDays: daysBetween(t.updatedDate, now),
-        resolutionDays: resTime,
-        categoryShown: categoryName || "Uncategorized",
-        categorySource: categorySource,
-        categoryConfidence: ov ? ov.categoryConfidence : null,
-        partnerShown: partnerShown,
-        nextActionShown: nextActionShown
+        ageDays:           daysBetween(t.createdDate, now),
+        idleDays:          daysBetween(t.updatedDate, now),
+        resolutionDays:    resTime,
+        categoryShown:     categoryName || "Uncategorized",
+        categorySource:    categorySource,
+        categoryConfidence:ov ? ov.categoryConfidence : null,
+        partnerShown:      partnerShown,
+        nextActionShown:   nextActionShown
       });
     });
   }
 
   // -----------------------------------------------------------------
-  // Auto-categorization pass — runs for any ticket without an existing
-  // manual override, so re-importing keeps manual work and still lets
-  // rule improvements (edited in rules.js) reach previously "auto" rows.
+  // Auto-categorization — runs on every ticket that isn't manually set.
+  // Uses subject + description + partner for richer signal matching.
   // -----------------------------------------------------------------
   function applyAutoCategorization(tickets) {
     tickets.forEach(function (t) {
       var existing = state.overrides[t.key];
       if (existing && existing.categorySource === "manual") return;
-      var suggestion = window.TicketRules.suggestCategory(t.subject + " " + t.partner);
+
+      // Compose categorization text: subject is most reliable signal,
+      // description adds context (first 400 chars), partner adds partner-specific clues.
+      var catText = [
+        t.subject,
+        (t.description || "").slice(0, 400),
+        t.partner
+      ].join(" ");
+
+      var suggestion = window.TicketRules.suggestCategory(catText);
       state.overrides[t.key] = Object.assign({}, existing, {
-        category: suggestion.category,
-        categorySource: "auto",
+        category:           suggestion.category,
+        categorySource:     "auto",
         categoryConfidence: suggestion.confidence,
-        partnerOverride: existing ? existing.partnerOverride : undefined,
-        nextAction: existing ? existing.nextAction : (t.importedNextAction || undefined),
-        updatedAt: existing ? existing.updatedAt : null
+        partnerOverride:    existing ? existing.partnerOverride : undefined,
+        nextAction:         existing ? existing.nextAction : (t.importedNextAction || undefined),
+        updatedAt:          existing ? existing.updatedAt : null
       });
       if (suggestion.category && state.categories.indexOf(suggestion.category) === -1) {
         state.categories.push(suggestion.category);
@@ -255,14 +266,15 @@
     var q = state.globalSearch.trim().toLowerCase();
     var terms = q ? q.split(/\s+/) : [];
     return withD.filter(function (t) {
-      if (f.status && t.status !== f.status) return false;
-      if (f.category && t.categoryShown !== f.category) return false;
-      if (f.partner && t.partnerShown.toLowerCase().indexOf(f.partner.toLowerCase()) === -1) return false;
-      if (f.subject && t.subject.toLowerCase().indexOf(f.subject.toLowerCase()) === -1) return false;
-      if (f.key && t.key.toLowerCase().indexOf(f.key.toLowerCase()) === -1) return false;
+      if (f.status   && t.status !== f.status)                                               return false;
+      if (f.category && t.categoryShown !== f.category)                                      return false;
+      if (f.partner  && t.partnerShown.toLowerCase().indexOf(f.partner.toLowerCase()) === -1) return false;
+      if (f.subject  && t.subject.toLowerCase().indexOf(f.subject.toLowerCase()) === -1)     return false;
+      if (f.key      && t.key.toLowerCase().indexOf(f.key.toLowerCase()) === -1)             return false;
       if (terms.length) {
-        var hay = [t.key, t.status, t.subject, t.partnerShown, t.categoryShown, t.nextActionShown, t.priority || ""]
-          .join(" ").toLowerCase();
+        var hay = [t.key, t.status, t.subject, t.partnerShown, t.categoryShown,
+                   t.nextActionShown, t.priority || "", t.description || ""]
+                    .join(" ").toLowerCase();
         for (var i = 0; i < terms.length; i++) {
           if (hay.indexOf(terms[i]) === -1) return false;
         }
@@ -303,18 +315,17 @@
 
   function groupKeyFor(t) {
     switch (state.groupBy) {
-      case "partner": return t.partnerShown || "—";
+      case "partner":  return t.partnerShown || "—";
       case "category": return t.categoryShown || "Uncategorized";
-      case "day": return t.createdDate ? t.createdDate.toISOString().slice(0, 10) : "brez datuma";
-      case "week": return t.createdDate ? isoWeekLabel(t.createdDate) : "brez datuma";
-      case "month": return t.createdDate ? t.createdDate.toISOString().slice(0, 7) : "brez datuma";
-      default: return null;
+      case "day":      return t.createdDate ? t.createdDate.toISOString().slice(0, 10) : "brez datuma";
+      case "week":     return t.createdDate ? isoWeekLabel(t.createdDate) : "brez datuma";
+      case "month":    return t.createdDate ? t.createdDate.toISOString().slice(0, 7) : "brez datuma";
+      default:         return null;
     }
   }
 
   function buildGroups(sorted) {
-    var groups = {};
-    var order = [];
+    var groups = {}, order = [];
     sorted.forEach(function (t) {
       var k = groupKeyFor(t);
       if (!groups[k]) { groups[k] = []; order.push(k); }
@@ -323,19 +334,18 @@
     order.sort(function (a, b) { return groups[b].length - groups[a].length; });
     return order.map(function (k) {
       var rows = groups[k];
-      var withRes = rows.filter(function (r) { return r.resolutionDays !== null; });
-      var avgRes = withRes.length
-        ? withRes.reduce(function (s, r) { return s + r.resolutionDays; }, 0) / withRes.length
-        : null;
-      var avgIdle = rows.length
-        ? rows.filter(function(r){return r.idleDays!==null;}).reduce(function (s, r) { return s + (r.idleDays||0); }, 0) / Math.max(1, rows.filter(function(r){return r.idleDays!==null;}).length)
-        : null;
+      var withRes  = rows.filter(function (r) { return r.resolutionDays !== null; });
+      var avgRes   = withRes.length
+        ? withRes.reduce(function (s, r) { return s + r.resolutionDays; }, 0) / withRes.length : null;
+      var idleRows = rows.filter(function (r) { return r.idleDays !== null; });
+      var avgIdle  = idleRows.length
+        ? idleRows.reduce(function (s, r) { return s + r.idleDays; }, 0) / idleRows.length : null;
       return { key: k, rows: rows, count: rows.length, avgRes: avgRes, avgIdle: avgIdle };
     });
   }
 
   // -----------------------------------------------------------------
-  // Rendering
+  // Rendering helpers
   // -----------------------------------------------------------------
   var els = {};
   function cacheEls() {
@@ -357,29 +367,55 @@
     return Math.round(v) + "d";
   }
 
-  function fmtDate(d) {
+  function fmtDateShort(d) {
     if (!d) return "—";
     var p = function (n) { return String(n).padStart(2, "0"); };
-    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+
+  function fmtDateFull(d) {
+    if (!d) return "—";
+    var p = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+           " " + p(d.getHours()) + ":" + p(d.getMinutes());
   }
 
   function relTime(ms) {
-    if (!ms) return "";
+    if (!ms && ms !== 0) return "";
     var s = Math.round((Date.now() - ms) / 1000);
-    if (s < 60) return "pravkar";
+    if (s < 60)   return "pravkar";
     var m = Math.round(s / 60);
-    if (m < 60) return m + "min nazaj";
+    if (m < 60)   return m + "min";
     var h = Math.round(m / 60);
-    if (h < 24) return h + "h nazaj";
-    return Math.round(h / 24) + "d nazaj";
+    if (h < 24)   return h + "h";
+    var d = Math.round(h / 24);
+    if (d < 30)   return d + "d";
+    var mo = Math.round(d / 30);
+    return mo + "mo";
+  }
+
+  function relTimeFromDate(d) {
+    if (!d) return "";
+    return relTime(d.getTime());
   }
 
   function statusClass(status) {
     var s = (status || "").toLowerCase();
-    if (s === "done" || s === "solved" || s === "closed") return "t-done";
-    if (s === "to do" || s === "new" || s === "open") return "t-open";
-    if (s.indexOf("progress") !== -1 || s.indexOf("pending") !== -1 || s.indexOf("waiting") !== -1) return "t-todo";
+    if (s === "done" || s === "solved" || s === "closed" || s === "resolved") return "t-done";
+    if (s === "to do" || s === "new" || s === "open")                         return "t-open";
+    if (s.indexOf("progress") !== -1 || s.indexOf("pending") !== -1 ||
+        s.indexOf("waiting") !== -1  || s.indexOf("in review") !== -1)        return "t-todo";
+    if (s === "blocked" || s === "on hold")                                   return "t-bad";
     return "t-other";
+  }
+
+  function priorityClass(priority) {
+    var p = (priority || "").toLowerCase();
+    if (p === "highest" || p === "critical" || p === "urgent") return "p-crit";
+    if (p === "high")                                           return "p-high";
+    if (p === "medium" || p === "normal")                       return "p-med";
+    if (p === "low" || p === "lowest")                          return "p-low";
+    return "";
   }
 
   function renderSummary() {
@@ -389,6 +425,14 @@
     var uncategorized = withD.filter(function (t) { return t.categoryShown === "Uncategorized"; }).length;
     var partners = {};
     withD.forEach(function (t) { partners[t.partnerShown] = true; });
+    var catCounts = {};
+    withD.forEach(function (t) {
+      if (t.categoryShown !== "Uncategorized") {
+        catCounts[t.categoryShown] = (catCounts[t.categoryShown] || 0) + 1;
+      }
+    });
+    var topCat = Object.keys(catCounts).sort(function (a, b) { return catCounts[b] - catCounts[a]; })[0];
+
     if (!total) {
       els.summaryStrip.innerHTML = '<span>Naloži .csv ali .xlsx izvoz, da se prikaže povzetek.</span>';
       return;
@@ -396,7 +440,8 @@
     els.summaryStrip.innerHTML =
       '<span><b>' + total + '</b> ticketov</span>' +
       '<span><b class="' + (uncategorized ? 'flag' : '') + '">' + uncategorized + '</b> nekategoriziranih</span>' +
-      '<span><b>' + Object.keys(partners).length + '</b> partnerjev</span>';
+      '<span><b>' + Object.keys(partners).length + '</b> partnerjev</span>' +
+      (topCat ? '<span>Najpogostejša: <b>' + escapeHtml(topCat) + '</b> (' + catCounts[topCat] + ')</span>' : '');
   }
 
   function renderLoadMeta() {
@@ -406,7 +451,7 @@
     }
     var when = state.loadedAt ? relTime(state.loadedAt) : "";
     els.loadMeta.innerHTML = 'Vir: <b>' + escapeHtml(state.filename || "neznano") + '</b>' +
-      (when ? ' · naloženo ' + when : '') + ' · ' + state.tickets.length + ' vrstic';
+      (when ? ' · naloženo ' + when + ' nazaj' : '') + ' · ' + state.tickets.length + ' vrstic';
   }
 
   function renderHeader() {
@@ -464,38 +509,132 @@
     });
   }
 
+  function confBar(confidence, source) {
+    if (source !== "auto" || !confidence) return "";
+    var pct = Math.round(confidence * 100);
+    var barColor = pct >= 70 ? "var(--ok)" : pct >= 45 ? "var(--warn)" : "var(--bad)";
+    return '<div class="conf-row">' +
+      '<div class="conf-bar-wrap" title="' + pct + '% confidence">' +
+        '<div class="conf-bar" style="width:' + pct + '%;background:' + barColor + '"></div>' +
+      '</div>' +
+      '<span class="conf-pct">' + pct + '%</span>' +
+    '</div>';
+  }
+
   function ticketRowHtml(t) {
     var idleCls = t.idleDays === null ? "" : (t.idleDays >= 7 ? "bad" : (t.idleDays >= 3 ? "warn" : "ok"));
-    var catBadgeCls = t.categoryShown === "Uncategorized" ? "none" : (t.categorySource === "auto" ? "auto" : "");
-    return '<tr data-key="' + escapeHtml(t.key) + '">' +
-      '<td class="id-cell">' + escapeHtml(t.key) + '</td>' +
+    var prio = t.priority;
+    var prioCls = priorityClass(prio);
+
+    // Description preview for hover tooltip (trimmed, first 250 chars)
+    var descPreview = (t.description || "").replace(/\s+/g, " ").slice(0, 250).trim();
+    if (descPreview.length === 250) descPreview += "…";
+
+    var idleCell = idleCls
+      ? '<span class="idle-dot ' + idleCls + '"></span>' + fmtDays(t.idleDays)
+      : fmtDays(t.idleDays);
+
+    return '<tr data-key="' + escapeHtml(t.key) + '" class="ticket-row">' +
+      // ID
+      '<td class="id-cell">' +
+        escapeHtml(t.key) +
+        (t.issueType === "Sub-task" ? '<div class="type-badge subtask">sub</div>' : '') +
+      '</td>' +
+
+      // Status
       '<td><span class="tag ' + statusClass(t.status) + '">' + escapeHtml(t.status) + '</span></td>' +
-      '<td class="subject-cell" title="' + escapeHtml(t.subject) + '">' + escapeHtml(t.subject) + '</td>' +
+
+      // Subject — with description tooltip
+      '<td class="subject-cell" data-desc="' + escapeHtml(descPreview) + '">' +
+        '<div class="subject-text">' + escapeHtml(t.subject) + '</div>' +
+        (prio && prioCls ? '<span class="prio-dot ' + prioCls + '" title="' + escapeHtml(prio) + '"></span>' : '') +
+      '</td>' +
+
+      // Partner
       '<td><input class="editable" data-field="partner" data-key="' + escapeHtml(t.key) + '" value="' + escapeHtml(t.partnerShown) + '"></td>' +
-      '<td><select class="editable" data-field="category" data-key="' + escapeHtml(t.key) + '">' + categoryOptions(t.categoryShown === "Uncategorized" ? "" : t.categoryShown) + '</select>' +
-        (t.categorySource === "auto" && t.categoryShown !== "Uncategorized" ? '<div class="cat-badge auto">auto · ' + Math.round((t.categoryConfidence || 0) * 100) + '%</div>' : '') + '</td>' +
+
+      // Category + confidence bar
+      '<td>' +
+        '<select class="editable" data-field="category" data-key="' + escapeHtml(t.key) + '">' +
+          categoryOptions(t.categoryShown === "Uncategorized" ? "" : t.categoryShown) +
+        '</select>' +
+        confBar(t.categoryConfidence, t.categorySource) +
+      '</td>' +
+
+      // Next action
       '<td><input class="editable" data-field="nextAction" data-key="' + escapeHtml(t.key) + '" value="' + escapeHtml(t.nextActionShown) + '" placeholder="—"></td>' +
-      '<td class="mono">' + escapeHtml(fmtDate(t.createdDate)) + '</td>' +
-      '<td class="mono">' + escapeHtml(fmtDate(t.updatedDate)) + '</td>' +
+
+      // Created date
+      '<td class="date-cell" title="' + escapeHtml(fmtDateFull(t.createdDate)) + '">' +
+        '<div class="date-abs">' + escapeHtml(fmtDateShort(t.createdDate)) + '</div>' +
+        '<div class="date-rel">' + escapeHtml(relTimeFromDate(t.createdDate)) + '</div>' +
+      '</td>' +
+
+      // Updated date
+      '<td class="date-cell" title="' + escapeHtml(fmtDateFull(t.updatedDate)) + '">' +
+        '<div class="date-abs">' + escapeHtml(fmtDateShort(t.updatedDate)) + '</div>' +
+        '<div class="date-rel">' + escapeHtml(relTimeFromDate(t.updatedDate)) + '</div>' +
+      '</td>' +
+
+      // Age / Idle
       '<td class="num">' + fmtDays(t.ageDays) + '</td>' +
-      '<td class="num">' + (idleCls ? '<span class="idle-dot ' + idleCls + '"></span>' : '') + fmtDays(t.idleDays) + '</td>' +
-      '</tr>';
+      '<td class="num">' + idleCell + '</td>' +
+    '</tr>';
   }
 
   function groupHeaderHtml(g, collapsed) {
     var aggBits = [];
-    if (g.avgRes !== null) aggBits.push("povp. reševanje " + fmtDays(g.avgRes));
-    else if (g.avgIdle !== null) aggBits.push("povp. idle " + fmtDays(g.avgIdle));
+    if (g.avgRes !== null)  aggBits.push("povp. reševanje " + fmtDays(g.avgRes));
+    if (g.avgIdle !== null) aggBits.push("povp. idle " + fmtDays(g.avgIdle));
     return '<tr class="group-header' + (collapsed ? " collapsed" : "") + '" data-group="' + escapeHtml(g.key) + '">' +
       '<td colspan="10"><span class="chev">▾</span>' + escapeHtml(g.key) +
       '<span class="count">' + g.count + ' ticketov</span>' +
       '<span class="agg">' + aggBits.join(" · ") + '</span></td></tr>';
   }
 
+  // -----------------------------------------------------------------
+  // Description tooltip — follows the cursor
+  // -----------------------------------------------------------------
+  var descTooltip = null;
+  function initDescTooltip() {
+    descTooltip = document.createElement("div");
+    descTooltip.className = "desc-tooltip";
+    document.body.appendChild(descTooltip);
+
+    els.tableBody.addEventListener("mouseover", function (e) {
+      var cell = e.target.closest(".subject-cell");
+      if (cell) {
+        var desc = cell.getAttribute("data-desc");
+        if (desc) {
+          descTooltip.textContent = desc;
+          descTooltip.classList.add("visible");
+        }
+      }
+    });
+    els.tableBody.addEventListener("mouseout", function (e) {
+      if (e.target.closest(".subject-cell")) {
+        descTooltip.classList.remove("visible");
+      }
+    });
+    document.addEventListener("mousemove", function (e) {
+      if (descTooltip.classList.contains("visible")) {
+        var x = e.clientX + 16, y = e.clientY + 12;
+        // Keep tooltip inside viewport
+        var tw = descTooltip.offsetWidth;
+        if (x + tw > window.innerWidth - 8) x = e.clientX - tw - 8;
+        descTooltip.style.left = x + "px";
+        descTooltip.style.top  = y + "px";
+      }
+    });
+  }
+
+  // -----------------------------------------------------------------
+  // Main render functions
+  // -----------------------------------------------------------------
   function renderBody() {
     var now = Date.now();
     var filtered = getFiltered(now);
-    var sorted = sortRows(filtered);
+    var sorted   = sortRows(filtered);
 
     if (!state.tickets.length) {
       els.tableBody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Ni podatkov. Povleci .csv ali .xlsx izvoz kamorkoli na to stran, ali klikni "Naloži izvoz" zgoraj.</div></td></tr>';
@@ -512,7 +651,6 @@
         if (!collapsed) html += g.rows.map(ticketRowHtml).join("");
       });
       els.tableBody.innerHTML = html;
-
       Array.prototype.forEach.call(els.tableBody.querySelectorAll(".group-header"), function (tr) {
         tr.addEventListener("click", function () {
           var k = tr.getAttribute("data-group");
@@ -531,12 +669,12 @@
     Array.prototype.forEach.call(els.tableBody.querySelectorAll("[data-field]"), function (el) {
       var evt = el.tagName === "SELECT" ? "change" : "blur";
       el.addEventListener(evt, function () {
-        var key = el.getAttribute("data-key");
+        var key   = el.getAttribute("data-key");
         var field = el.getAttribute("data-field");
-        var ov = Object.assign({}, state.overrides[key]);
+        var ov    = Object.assign({}, state.overrides[key]);
         if (field === "category") {
-          ov.category = el.value || null;
-          ov.categorySource = "manual";
+          ov.category           = el.value || null;
+          ov.categorySource     = "manual";
           ov.categoryConfidence = null;
         } else if (field === "partner") {
           ov.partnerOverride = el.value.trim();
@@ -546,7 +684,7 @@
         ov.updatedAt = Date.now();
         state.overrides[key] = ov;
         saveJSON(LS_OVERRIDES, state.overrides);
-        if (field === "category") renderBody(); // refresh the auto-badge immediately
+        if (field === "category") renderBody();
       });
     });
   }
@@ -563,7 +701,7 @@
   // Data loading
   // -----------------------------------------------------------------
   function applyImportedRows(normalized, filename, loadedAt) {
-    state.tickets = normalized;
+    state.tickets  = normalized;
     state.filename = filename;
     state.loadedAt = loadedAt;
     applyAutoCategorization(state.tickets);
@@ -574,17 +712,20 @@
   function serializeTickets(tickets) {
     return tickets.map(function (t) {
       return Object.assign({}, t, {
-        createdDate: t.createdDate ? t.createdDate.toISOString() : null,
-        updatedDate: t.updatedDate ? t.updatedDate.toISOString() : null,
+        createdDate:  t.createdDate  ? t.createdDate.toISOString()  : null,
+        updatedDate:  t.updatedDate  ? t.updatedDate.toISOString()  : null,
         resolvedDate: t.resolvedDate ? t.resolvedDate.toISOString() : null
       });
     });
   }
+
   function deserializeTickets(rows) {
     return rows.map(function (t) {
       return Object.assign({}, t, {
-        createdDate: t.createdDate ? new Date(t.createdDate) : null,
-        updatedDate: t.updatedDate ? new Date(t.updatedDate) : null,
+        description:  t.description  || "",
+        issueType:    t.issueType    || "",
+        createdDate:  t.createdDate  ? new Date(t.createdDate)  : null,
+        updatedDate:  t.updatedDate  ? new Date(t.updatedDate)  : null,
         resolvedDate: t.resolvedDate ? new Date(t.resolvedDate) : null
       });
     });
@@ -594,9 +735,9 @@
     var reader = new FileReader();
     reader.onload = function () {
       try {
-        var data = new Uint8Array(reader.result);
-        var wb = XLSX.read(data, { type: "array" });
-        var objRows = rowsFromWorkbook(wb);
+        var data       = new Uint8Array(reader.result);
+        var wb         = XLSX.read(data, { type: "array" });
+        var objRows    = rowsFromWorkbook(wb);
         var normalized = normalizeRows(objRows);
         applyImportedRows(normalized, file.name, Date.now());
       } catch (err) {
@@ -645,17 +786,19 @@
       var file = e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) handleFile(file);
     });
+
+    initDescTooltip();
   }
 
   function init() {
     cacheEls();
     state.categories = loadJSON(LS_CATEGORIES, window.TicketRules.DEFAULT_CATEGORIES.slice());
-    state.overrides = loadJSON(LS_OVERRIDES, {});
+    state.overrides  = loadJSON(LS_OVERRIDES, {});
     initEvents();
 
     var savedRaw = loadJSON(LS_RAW, null);
     if (savedRaw && savedRaw.tickets && savedRaw.tickets.length) {
-      state.tickets = deserializeTickets(savedRaw.tickets);
+      state.tickets  = deserializeTickets(savedRaw.tickets);
       state.filename = savedRaw.filename;
       state.loadedAt = savedRaw.loadedAt;
     }
