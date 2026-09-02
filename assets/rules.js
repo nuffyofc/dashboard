@@ -108,6 +108,13 @@
         { re: /winning.*legitimac/i,                           weight: 5 },
         { re: /please\s+check\s+legitimacy/i,                  weight: 5 },
         { re: /encountered.*error.*round\s+ID/i,               weight: 5 }, // error + round reference = win check
+        { re: /Lunar\s+Rabbit.*details/i,                       weight: 6 }, // "GA - Lunar Rabbit - Game details questions"
+        { re: /Lunar\s+Rabbit.*Vulnerability/i,                 weight: 7 }, // "GA - Lunar Rabbit Game Vulnerability Check"
+        { re: /Vulnerability\s+Check/i,                         weight: 7 }, // game fairness / vulnerability check
+        { re: /black.?jack.*check/i,                            weight: 6 }, // "black jack check"
+        { re: /\d+\s+\/+\s+GameArt\s+\/+\s+\d+/i,              weight: 5 }, // "partner // GameArt // player_id" format
+        { re: /check.*winning\s+user/i,                         weight: 7 }, // "Check winning user EPLAY24_NNN"
+        { re: /Missing\s+funds/i,                               weight: 6 }, // "(SG#NNN) Missing funds"
         { re: /legitimac/i,                                    weight: 3 }
       ]
     },
@@ -155,6 +162,7 @@
         { re: /game.*rounds?\s+not\s+available.*stuck/i,       weight: 5 },
         { re: /stuck\s+in\s+resume/i,                          weight: 5 },
         { re: /Player.{0,20}\d+.{0,5}Stuck/i,                  weight: 6 }, // "Player 1224_949367 Stuck"
+        { re: /\bstuck\s+round\b/i,                             weight: 7 }, // "Bahigo - Stuck round - CCS-174126"
         { re: /stuck.*win/i,                                   weight: 4 }
       ]
     },
@@ -189,6 +197,12 @@
         { re: /check.*rounds?\s+(listed|below|above)/i,        weight: 6 }, // "rounds listed below were not settled"
         { re: /does\s+not\s+return\s+rounds?/i,                weight: 7 }, // "Gameart does not return rounds"
         { re: /rounds?\s+listed\s+below\s+were\s+not\s+settled/i, weight: 7 }, // verbatim match
+        { re: /\bopen\s+rounds?\b/i,                            weight: 5 }, // "#gameart #open rounds" — unsettled sessions
+        { re: /Rounds?\s+Auto.closing\s+issue/i,                weight: 8 }, // "Rounds Auto-closing issue in GameArt"
+        { re: /Automatic\s+Settlement.*Unfinished\s+Rounds?/i,  weight: 7 },
+        { re: /check.*open\s+round|open\s+round.*check/i,       weight: 7 }, // "Check open round - BSD-8518"
+        { re: /\d+\s+-\s+Check\s+open\s+round/i,                weight: 8 }, // "37076925 - Check open round"
+        { re: /\d+\s+-\s+Stuck\s+round/i,                       weight: 8 }, // "61513383 - Stuck round"
         { re: /round\s+id.*settled/i,                          weight: 5 }
       ]
     },
@@ -213,7 +227,17 @@
         { re: /confirm\s+if\s+you\s+support.*currencies.*enable/i, weight: 6 },
         { re: /if\s+yes\s+please\s+enable\s+to\s+us/i,          weight: 6 }, // GoldenMatrix pattern
         { re: /enable\s+to\s+us.*currenc/i,                     weight: 6 },
-        { re: /ENABLE\s+CURRENCY/,                              weight: 8 }  // explicit title
+        { re: /ENABLE\s+CURRENCY/,                              weight: 8 },  // explicit title
+        { re: /Adding\s+a\s+new\s+currency\s+to/i,             weight: 8 }, // "Adding a new currency to the Play Fortuna project"
+        { re: /add\s+multiple\s+currencies\s+for/i,             weight: 8 }, // SOFTSWISS "[GAS-NNN]: add multiple currencies for X"
+        { re: /\[GAS-\d+\]:?\s+add\s+multiple\s+currencies/i,  weight: 8 },
+        { re: /\[GAS-\d+\]:?\s+add\s+currencies\s+for/i,       weight: 8 }, // "[GAS-NNN]: add currencies for 8tech"
+        { re: /\[GAS-\d+\]:?\s+add\s+[A-Z]{3}\s+currency/,    weight: 8 }, // "[GAS-NNN]: add NIO currency for fichadorada"
+        { re: /enable\s+multiple\s+currencies\s+for\s+casino/i, weight: 8 }, // "enable multiple currencies for casino id"
+        { re: /\[GAS-\d+\]:?\s+enable\s+[A-Z]{3}/,             weight: 7 }, // "[GAS-NNN]: enable EGP, HUF, USD currency"
+        { re: /FUN\s+Currency\b/i,                              weight: 7 }, // "FUN Currency (SG#842755)"
+        { re: /currency.*not\s+working/i,                       weight: 6 }, // "GA - Currency CNY not working on staging"
+        { re: /ratio\s+change.*currenc/i,                       weight: 7 }  // "ratio change between SCN and GCN currency"
       ]
     },
 
@@ -265,6 +289,15 @@
         { re: /bet\s+values?\b/i,                              weight: 6 },
         { re: /bet\s+limit(s)?\b/i,                            weight: 6 },
         { re: /\[GAS-\d+\]:?\s+limits?\s+for/i,                weight: 8 }, // SOFTSWISS "[GAS-NNNNNN]: limits for"
+        { re: /\[GAS-\d+\]:?\s+change\s+limits/i,              weight: 8 }, // "[GAS-NNN]: change limits"
+        { re: /limits?\s+in\s+[A-Z]{3}\b/,                     weight: 7 }, // "limits in ARS (#844000)"
+        { re: /\[GAS-\d+\]:?\s+max\s+expo/i,                   weight: 8 }, // "[GAS-NNN]: max expo 1mln for casino"
+        { re: /max\s+expo\s+(for|\d)/i,                         weight: 7 }, // "2m max expo for MonkeytiltVIP"
+        { re: /Adjust\s+Max\s+expo(sure)?/i,                    weight: 7 }, // "Adjust Max exposure"
+        { re: /Bet\s+Values?\s+\w/,                             weight: 7 }, // "Bet Values Jugamax-py [SS-26000]"
+        { re: /bet\s+limit\s+(adjustment|query|incorrect)/i,    weight: 7 }, // "Bet limit adjustment"
+        { re: /wrong\s+bet\s+values?/i,                         weight: 7 }, // "San Loong Fortune wrong bet values"
+        { re: /bet\s+amount\s+layout/i,                         weight: 6 }, // "Issues with the bet amount layout"
         { re: /min\s+bet\b/i,                                  weight: 4 },
         { re: /max\s+bet\b/i,                                  weight: 4 },
         { re: /default\s+bet\b/i,                              weight: 4 }
@@ -284,7 +317,10 @@
         { re: /\[GAS-\d+\]?:?\s+RTP\b/i,                     weight: 8 }, // SOFTSWISS "[GAS-203339]: RTP"
         { re: /set\s+RTP.*%.*for.*casino/i,                   weight: 7 },
         { re: /low\s+RTP\s+access/i,                          weight: 8 }, // "Production low RTP access"
-        { re: /RTP\s+to\s+\d+%/i,                             weight: 6 }
+        { re: /RTP\s+to\s+\d+%/i,                             weight: 6 },
+        { re: /\[GAS-\d+\]:?\s+\d+m\d+rtp/i,                  weight: 8 }, // "[GAS-NNN]: 1m92rtp" compact SOFTSWISS format
+        { re: /\[GAS-\d+\]:?\s+RTP\s+for\b/i,                  weight: 8 }, // "[GAS-NNN]: RTP for spinaconda"
+        { re: /RTP\s+information\s+with\s+the\s+games/i,       weight: 7 }  // "RTP information with the games"
       ]
     },
 
@@ -309,6 +345,12 @@
         { re: /do\s+not.*complete\s+launching/i,               weight: 7 }, // "do not complete launching"
         { re: /not.*complete\s+launching/i,                    weight: 6 },
         { re: /games?\s+unavailable/i,                         weight: 6 },
+        { re: /games?\s+unavailability/i,                       weight: 6 }, // "GameArt provider unavailability"
+        { re: /provider.{0,10}unavailability/i,                 weight: 7 }, // "All Middle East Partners: GameArt provider's games unavailability"
+        { re: /games?\s+from.*do\s+not\s+work/i,                weight: 7 }, // "All games from GameArt do not work on rvc-prod"
+        { re: /do\s+not\s+work.*\bprod\b/i,                     weight: 6 }, // "games do not work on rvc-prod"
+        { re: /\[.*game_doesn.t_work\]/i,                       weight: 8 }, // "(GABBCUS-NNN) [RusML, game_doesn't_work]"
+        { re: /game_doesnt_work/i,                              weight: 8 }, // "REF NNN game_doesnt_work GameArt" (no apostrophe)
         { re: /game\s+list\s+is\s+not\s+available/i,           weight: 7 }, // "game list is not available"
         { re: /slot.*malfunction|malfunction.*slot/i,           weight: 6 }, // "report slot malfunction"
         { re: /unable\s+to.*test.*games?.*loading/i,           weight: 6 },
@@ -340,7 +382,9 @@
         { re: /whitelist.*IPs?\s+on\s+(prod|production|PROD)/i, weight: 7 },
         { re: /ip\s+whitelist/i,                               weight: 7 },
         { re: /whitelist.*IP/i,                                weight: 5 },
-        { re: /permission\s+denied\s+from\s+this\s+ip/i,      weight: 6 }
+        { re: /permission\s+denied\s+from\s+this\s+ip/i,      weight: 6 },
+        { re: /Adding\s+an\s+IP.{0,30}whitelist/i,             weight: 8 }, // "Adding an IP (1.2.3.4) to the whitelist"
+        { re: /Add\s+IP\s+to\s+(your\s+)?whitelist/i,          weight: 8 }  // "Add IP to your whitelist"
       ]
     },
 
@@ -369,6 +413,18 @@
         { re: /close\s+operator\s+accounts?/i,                 weight: 7 }, // "Close Operator Accounts in Staging"
         { re: /disable.*following\s+agent/i,                   weight: 7 },
         { re: /\bBO\s+access\b/i,                              weight: 6 }, // "BO access for support agents"
+        { re: /\bBO\s+Password\b/i,                            weight: 7 }, // "BO Password reset"
+        { re: /Access\s+Verification/i,                         weight: 6 }, // "Access Verification – Former Employee"
+        { re: /production\s+access\s+\w/i,                     weight: 6 }, // "Production access Sweep - cogniplay"
+        { re: /\[GAS-\d+\]:?\s+create\s+a\s+separate\s+account/i, weight: 7 }, // "[GAS-NNN]: create a separate account for casino"
+        { re: /\bBackOffice\b/i,                               weight: 6 }, // "BackOffice 2FA Support Request"
+        { re: /\bBack\s+Office\b/i,                            weight: 5 }, // "Back Office 2FA"
+        { re: /\bAccess\s+to\s+BO\b/i,                         weight: 7 }, // "Access to BO"
+        { re: /Account\s+locked/i,                              weight: 7 }, // "Account locked (User blocked manually)"
+        { re: /2fa\s+Request\b/i,                               weight: 7 }, // "2fa Request from gamingsoft"
+        { re: /Access\s+Verification/i,                         weight: 6 }, // "Access Verification – Former Employee"
+        { re: /Back\s*[Oo]ffice\s+(2FA|Access|log\s+in)/i,     weight: 7 }, // "Backoffice 2FA Support Request"
+        { re: /Password\s+Rotation.*2FA|2FA.*Password\s+Rotation/i, weight: 7 }, // security update ticket
         { re: /access.*backoffice/i,                           weight: 5 },
         { re: /please\s+give\s+us\s+access\s+to\s+the\s+BO/i, weight: 7 },
         { re: /reset.*back.office.*credentials/i,              weight: 7 },
@@ -426,6 +482,8 @@
         { re: /free\s+spins?\s+(config|endpoint|request|via)/i, weight: 6 },
         { re: /implement.*free\s+spins?\s+via\s+API/i,          weight: 7 },
         { re: /free\s+spins?\s+via\s+API/i,                     weight: 7 },
+        { re: /free\s+spins?\s+.{0,60}not\s+(visib|working)/i,  weight: 7 }, // "Free spins in game ... is not vissible"
+        { re: /Freespin\s+Cancellation/i,                        weight: 7 }, // "Clarification Request: Freespin Cancellation"
         { re: /purchasing\s+a.*bonus|bonus.*purchase/i,          weight: 5 }, // bonus purchase session interrupted
         { re: /\bbonus\b/i,                                     weight: 2 } // low weight — appears everywhere
       ]
@@ -452,6 +510,14 @@
         { re: /games?\s+not\s+loading.*incognito/i,             weight: 7 },
         { re: /raw\s+currency\s+code.*lobby/i,                  weight: 7 }, // game client renders raw currency code
         { re: /Erorr\s+with\s+the\s+games?/i,                   weight: 6 }, // typo in real ticket
+        { re: /Incorrect\s+Display.*Bet.*Win/i,                 weight: 7 }, // "Incorrect Display of Bet and Win Amounts"
+        { re: /home.*button.*issue/i,                           weight: 7 }, // "The 'home' button issue in all games"
+        { re: /portrait\s+mode.*notification/i,                 weight: 6 }, // "Turn to portrait mode notification"
+        { re: /turn\s+to\s+portrait\s+mode/i,                   weight: 7 },
+        { re: /2\s+different\s+game\s+names?/i,                 weight: 7 }, // "2 different game names in the slot game"
+        { re: /win\s+animation/i,                               weight: 5 }, // "Win Animation Inquiry"
+        { re: /Error\s+code\s+-?\s*\d+/i,                       weight: 5 }, // "Error code - 999"
+        { re: /Increase\s+button\s+not\s+working/i,             weight: 7 }, // "Increase button not working on Yellow Diver"
         { re: /\bUI\b/,                                         weight: 2 }
       ]
     }
