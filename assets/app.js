@@ -662,5 +662,14 @@
     render();
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  function boot() {
+    if (window.TicketAuth.isUnlocked()) {
+      document.body.classList.remove("locked");
+      init();
+    } else {
+      window.TicketAuth.showGate(init);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
 })();

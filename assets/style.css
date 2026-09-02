@@ -133,6 +133,32 @@ select.editable{cursor:pointer;}
 
 .dragover{outline:2px dashed var(--gold);outline-offset:-6px;background:rgba(212,175,55,.06);}
 
+/* ---------- auth gate ---------- */
+body.locked > .wrap{display:none;}
+.auth-gate{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
+  z-index:100;padding:20px;
+}
+.auth-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+  padding:32px 30px;width:100%;max-width:340px;text-align:center;display:flex;flex-direction:column;gap:12px;
+}
+.auth-card .auth-mark{font-size:30px;transform:rotate(-6deg);}
+.auth-card h1{font-size:15px;letter-spacing:.4px;margin:0;}
+.auth-sub{color:var(--mut);font-size:12px;margin:0 0 4px;}
+.auth-card input[type=password]{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);
+  color:var(--txt);font:inherit;font-size:14px;text-align:center;letter-spacing:1px;
+}
+.auth-card .btn{justify-content:center;}
+.auth-error{color:var(--bad);font-size:11.5px;}
+.auth-card.shake{animation:authShake .4s ease;}
+@keyframes authShake{
+  10%,90%{transform:translateX(-1px);} 20%,80%{transform:translateX(2px);}
+  30%,50%,70%{transform:translateX(-4px);} 40%,60%{transform:translateX(4px);}
+}
+@media (prefers-reduced-motion: reduce){ .auth-card.shake{animation:none;} }
+
 .add-cat{display:flex;gap:6px;align-items:center;}
 .add-cat input{
   width:130px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);
