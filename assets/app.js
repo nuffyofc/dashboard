@@ -753,7 +753,7 @@
   }
 
   function mkCanvas(id, height) {
-    return '<canvas id="' + id + '" height="' + height + '"></canvas>';
+    return '<div style="position:relative;height:' + height + 'px"><canvas id="' + id + '"></canvas></div>';
   }
 
   function chartDefaults() {
@@ -960,12 +960,12 @@
       '<div class="report-section">' +
         '<h2 class="report-heading">Grafi</h2>' +
         '<div class="chart-grid">' +
-          '<div class="chart-card"><h3>Ticketi po partnerju (top 10)</h3>' + mkCanvas("ch-pie-partner", "240") + '</div>' +
-          '<div class="chart-card"><h3>Ticketi po kategoriji</h3>'          + mkCanvas("ch-pie-cat",     "240") + '</div>' +
-          '<div class="chart-card"><h3>Ticketi po statusu</h3>'             + mkCanvas("ch-bar-status",  "240") + '</div>' +
-          '<div class="chart-card wide"><h3>Top 10 partnerjev</h3>'         + mkCanvas("ch-bar-partners","220") + '</div>' +
-          '<div class="chart-card"><h3>Top 10 kategorij</h3>'               + mkCanvas("ch-bar-cats",   "220") + '</div>' +
-          '<div class="chart-card full"><h3>Obseg po mesecu</h3>'           + mkCanvas("ch-line-vol",   "180") + '</div>' +
+          '<div class="chart-card"><h3>Ticketi po partnerju (top 10)</h3>' + mkCanvas("ch-pie-partner", "260") + '</div>' +
+          '<div class="chart-card"><h3>Ticketi po kategoriji</h3>'          + mkCanvas("ch-pie-cat",     "260") + '</div>' +
+          '<div class="chart-card"><h3>Ticketi po statusu</h3>'             + mkCanvas("ch-bar-status",  "260") + '</div>' +
+          '<div class="chart-card"><h3>Top 10 partnerjev</h3>'              + mkCanvas("ch-bar-partners","260") + '</div>' +
+          '<div class="chart-card"><h3>Top 10 kategorij</h3>'               + mkCanvas("ch-bar-cats",    "260") + '</div>' +
+          '<div class="chart-card"><h3>Obseg po mesecu</h3>'                + mkCanvas("ch-line-vol",    "260") + '</div>' +
         '</div>' +
       '</div>';
 

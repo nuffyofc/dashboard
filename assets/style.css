@@ -351,13 +351,12 @@ body.locked > .wrap{display:none;}
 .chart-card{
   background:var(--panel);border:1px solid var(--line);border-radius:12px;
   padding:16px;transition:border-color .2s,box-shadow .2s;
+  overflow:hidden;min-width:0;
 }
 .chart-card:hover{
   border-color:var(--blue);
   box-shadow:0 0 0 1px rgba(90,167,255,.2),0 8px 24px -8px rgba(0,0,0,.5);
 }
-.chart-card.wide{grid-column:span 2;}
-.chart-card.full{grid-column:span 3;}
 .chart-card h3{
   font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;
   color:var(--mut);font-weight:700;margin:0 0 12px;
