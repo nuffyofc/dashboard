@@ -57,6 +57,7 @@
       '  <div class="auth-mark">🎫</div>' +
       '  <h1>GA SUPPORT · <span class="gold">BOSS TABLE</span></h1>' +
       '  <p class="auth-sub">Dostop je zaščiten z geslom.</p>' +
+      '  <div class="auth-hint">🪙 &mdash; 🌷 &mdash; 🫐 &mdash; 97</div>' +
       '  <input type="password" id="authInput" placeholder="Geslo" autocomplete="current-password" autofocus>' +
       '  <button type="submit" class="btn primary">Odkleni</button>' +
       '  <div class="auth-error" id="authError" hidden>Napačno geslo — poskusi znova.</div>' +

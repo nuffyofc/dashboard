@@ -262,6 +262,10 @@ body.locked > .wrap{display:none;}
 }
 .auth-card input[type=password]:focus{border-color:var(--blue);}
 .auth-card .btn{justify-content:center;}
+.auth-hint{
+  font-size:22px;letter-spacing:6px;color:var(--mut);
+  padding:6px 0 2px;user-select:none;
+}
 .auth-error{color:var(--bad);font-size:11.5px;}
 .auth-card.shake{animation:authShake .4s ease;}
 @keyframes authShake{
