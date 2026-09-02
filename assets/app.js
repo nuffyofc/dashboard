@@ -695,6 +695,322 @@
     renderHeader();
     renderFilterRow();
     renderBody();
+    if (document.getElementById("tab-report").classList.contains("active")) {
+      renderReport();
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // Tab switching
+  // -----------------------------------------------------------------
+  function initTabs() {
+    Array.prototype.forEach.call(document.querySelectorAll(".tab-btn"), function (btn) {
+      btn.addEventListener("click", function () {
+        var tab = btn.getAttribute("data-tab");
+        Array.prototype.forEach.call(document.querySelectorAll(".tab-btn"), function (b) {
+          b.classList.toggle("active", b === btn);
+        });
+        Array.prototype.forEach.call(document.querySelectorAll(".tab-panel"), function (p) {
+          p.classList.toggle("active", p.id === "tab-" + tab);
+        });
+        if (tab === "report") renderReport();
+      });
+    });
+  }
+
+  // -----------------------------------------------------------------
+  // Report / Analysis tab
+  // -----------------------------------------------------------------
+  var _reportCharts = {};
+
+  var PALETTE = [
+    "#5aa7ff","#d4af37","#a78bfa","#3ecf8e","#f5b942",
+    "#f06060","#60d0f0","#e87040","#70c060","#c060f0",
+    "#ff9060","#60c0c0","#9090ff","#f0c060","#b0e060",
+    "#f06090","#60f0c0","#e0b060","#80b0ff","#d070d0"
+  ];
+
+  function destroyCharts() {
+    Object.keys(_reportCharts).forEach(function (k) {
+      try { _reportCharts[k].destroy(); } catch (e) {}
+    });
+    _reportCharts = {};
+  }
+
+  function countBy(tickets, fn) {
+    var map = {};
+    tickets.forEach(function (t) {
+      var k = fn(t) || "—";
+      map[k] = (map[k] || 0) + 1;
+    });
+    return map;
+  }
+
+  function topN(map, n) {
+    return Object.keys(map)
+      .sort(function (a, b) { return map[b] - map[a]; })
+      .slice(0, n);
+  }
+
+  function mkCanvas(id, height) {
+    return '<canvas id="' + id + '" height="' + height + '"></canvas>';
+  }
+
+  function chartDefaults() {
+    if (!window.Chart) return;
+    Chart.defaults.color = "#8b98b3";
+    Chart.defaults.borderColor = "#1f2b45";
+    Chart.defaults.font.family = "-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+    Chart.defaults.font.size = 11;
+  }
+
+  function makePie(id, labels, data, total) {
+    var ctx = document.getElementById(id);
+    if (!ctx || !window.Chart) return;
+    _reportCharts[id] = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: PALETTE.slice(0, labels.length),
+          borderColor: "#0b1120",
+          borderWidth: 2,
+          hoverBorderWidth: 3,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "55%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#8b98b3", font: { size: 10 }, padding: 10, boxWidth: 10, boxHeight: 10 }
+          },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                return "  " + ctx.label + ": " + ctx.parsed + " (" + pct + "%)";
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function makeBar(id, labels, data, color, horizontal, label) {
+    var ctx = document.getElementById(id);
+    if (!ctx || !window.Chart) return;
+    _reportCharts[id] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: label || "Ticketi",
+          data: data,
+          backgroundColor: color + "cc",
+          borderColor: color,
+          borderWidth: 1,
+          borderRadius: 4,
+          hoverBackgroundColor: color
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: horizontal ? "y" : "x",
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (c) { return "  " + c.parsed[horizontal ? "x" : "y"] + " ticketov"; } } }
+        },
+        scales: {
+          x: { grid: { color: horizontal ? "transparent" : "#1f2b45" }, ticks: { color: "#8b98b3", font: { size: 10 } } },
+          y: { grid: { color: horizontal ? "#1f2b45" : "transparent" }, ticks: { color: "#8b98b3", font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  function makeLine(id, labels, data) {
+    var ctx = document.getElementById(id);
+    if (!ctx || !window.Chart) return;
+    _reportCharts[id] = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Ticketi",
+          data: data,
+          borderColor: "#5aa7ff",
+          backgroundColor: "rgba(90,167,255,0.12)",
+          borderWidth: 2,
+          pointBackgroundColor: "#5aa7ff",
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: "#1f2b45" }, ticks: { color: "#8b98b3", font: { size: 10 } } },
+          y: { grid: { color: "#1f2b45" }, ticks: { color: "#8b98b3", font: { size: 10 }, stepSize: 1 }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function statCard(label, value, sub, color) {
+    return '<div class="stat-card" style="--sc:' + color + '">' +
+      '<div class="stat-label">' + escapeHtml(label) + '</div>' +
+      '<div class="stat-value">' + escapeHtml(String(value)) + '</div>' +
+      (sub ? '<div class="stat-sub">' + escapeHtml(sub) + '</div>' : '') +
+    '</div>';
+  }
+
+  function breakdownTable(title, map, total) {
+    var keys = Object.keys(map).sort(function (a, b) { return map[b] - map[a]; });
+    var rows = keys.map(function (k) {
+      var pct = total ? Math.round(map[k] / total * 100) : 0;
+      return '<tr>' +
+        '<td>' + escapeHtml(k) + '</td>' +
+        '<td class="nc">' + map[k] + '</td>' +
+        '<td class="pc">' + pct + '%</td>' +
+      '</tr>';
+    }).join("");
+    return '<div class="report-table-card">' +
+      '<h3>' + escapeHtml(title) + '</h3>' +
+      '<table class="report-tbl">' +
+        '<thead><tr><th>Ime</th><th class="r">Število</th><th class="r">%</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+  }
+
+  function renderReport() {
+    var root = document.getElementById("reportRoot");
+    if (!root) return;
+
+    if (!state.tickets.length) {
+      root.innerHTML = '<div class="report-empty">Ni podatkov. Naloži .csv ali .xlsx izvoz najprej.</div>';
+      return;
+    }
+
+    destroyCharts();
+    chartDefaults();
+
+    var now = Date.now();
+    var tickets = withDerived(state.tickets, now);
+    var total = tickets.length;
+
+    var statusMap   = countBy(tickets, function (t) { return t.status; });
+    var partnerMap  = countBy(tickets, function (t) { return t.partnerShown; });
+    var categoryMap = countBy(tickets, function (t) { return t.categoryShown; });
+    var priorityMap = countBy(tickets, function (t) { return t.priority || "Brez prioritete"; });
+
+    var monthMap = {};
+    tickets.forEach(function (t) {
+      if (t.createdDate) {
+        var mo = t.createdDate.toISOString().slice(0, 7);
+        monthMap[mo] = (monthMap[mo] || 0) + 1;
+      }
+    });
+
+    var openCount     = 0, solvedCount = 0, pendingCount = 0;
+    tickets.forEach(function (t) {
+      var sc = statusClass(t.status);
+      if (sc === "t-open") openCount++;
+      else if (sc === "t-done") solvedCount++;
+      else if (sc === "t-todo") pendingCount++;
+    });
+
+    var uniquePartners   = Object.keys(partnerMap).length;
+    var uniqueCategories = Object.keys(categoryMap).length;
+    var uncategorized    = categoryMap["Uncategorized"] || 0;
+
+    // ---- stat cards ----
+    var statsHtml =
+      '<div class="report-section">' +
+        '<h2 class="report-heading">Pregled</h2>' +
+        '<div class="stat-grid">' +
+          statCard("Skupaj ticketov",    total,           "", "#5aa7ff") +
+          statCard("Odprtih",            openCount,       "status: open / new / to do", "#5aa7ff") +
+          statCard("Rešenih",            solvedCount,     "status: done / solved / closed", "#3ecf8e") +
+          statCard("V teku",             pendingCount,    "status: pending / in progress", "#f5b942") +
+          statCard("Partnerjev",         uniquePartners,  "unikatnih partnerjev", "#a78bfa") +
+          statCard("Kategorij",          uniqueCategories,"unikatnih kategorij", "#d4af37") +
+          statCard("Nekategoriziranih",  uncategorized,   Math.round(uncategorized/total*100) + "% od vseh", "#f06060") +
+        '</div>' +
+      '</div>';
+
+    // ---- charts ----
+    var top10Partners   = topN(partnerMap, 10);
+    var top10Categories = topN(categoryMap, 10);
+    var monthKeys       = Object.keys(monthMap).sort();
+    var statusKeys      = Object.keys(statusMap).sort(function (a, b) { return statusMap[b] - statusMap[a]; });
+
+    var chartsHtml =
+      '<div class="report-section">' +
+        '<h2 class="report-heading">Grafi</h2>' +
+        '<div class="chart-grid">' +
+          '<div class="chart-card"><h3>Ticketi po partnerju (top 10)</h3>' + mkCanvas("ch-pie-partner", "240") + '</div>' +
+          '<div class="chart-card"><h3>Ticketi po kategoriji</h3>'          + mkCanvas("ch-pie-cat",     "240") + '</div>' +
+          '<div class="chart-card"><h3>Ticketi po statusu</h3>'             + mkCanvas("ch-bar-status",  "240") + '</div>' +
+          '<div class="chart-card wide"><h3>Top 10 partnerjev</h3>'         + mkCanvas("ch-bar-partners","220") + '</div>' +
+          '<div class="chart-card"><h3>Top 10 kategorij</h3>'               + mkCanvas("ch-bar-cats",   "220") + '</div>' +
+          '<div class="chart-card full"><h3>Obseg po mesecu</h3>'           + mkCanvas("ch-line-vol",   "180") + '</div>' +
+        '</div>' +
+      '</div>';
+
+    // ---- tables ----
+    var tablesHtml =
+      '<div class="report-section">' +
+        '<h2 class="report-heading">Razčlenitve</h2>' +
+        '<div class="table-grid">' +
+          breakdownTable("Po partnerju",   partnerMap,  total) +
+          breakdownTable("Po kategoriji",  categoryMap, total) +
+          breakdownTable("Po statusu",     statusMap,   total) +
+        '</div>' +
+      '</div>';
+
+    root.innerHTML = statsHtml + chartsHtml + tablesHtml;
+
+    // ---- draw charts after DOM is ready ----
+    makePie("ch-pie-partner",
+      top10Partners,
+      top10Partners.map(function (k) { return partnerMap[k]; }),
+      total);
+
+    makePie("ch-pie-cat",
+      top10Categories,
+      top10Categories.map(function (k) { return categoryMap[k]; }),
+      total);
+
+    makeBar("ch-bar-status",
+      statusKeys,
+      statusKeys.map(function (k) { return statusMap[k]; }),
+      "#5aa7ff", false);
+
+    makeBar("ch-bar-partners",
+      top10Partners.slice().reverse(),
+      top10Partners.slice().reverse().map(function (k) { return partnerMap[k]; }),
+      "#d4af37", true);
+
+    makeBar("ch-bar-cats",
+      top10Categories.slice().reverse(),
+      top10Categories.slice().reverse().map(function (k) { return categoryMap[k]; }),
+      "#a78bfa", true);
+
+    makeLine("ch-line-vol",
+      monthKeys,
+      monthKeys.map(function (k) { return monthMap[k]; }));
   }
 
   // -----------------------------------------------------------------
@@ -794,6 +1110,7 @@
     cacheEls();
     state.categories = loadJSON(LS_CATEGORIES, window.TicketRules.DEFAULT_CATEGORIES.slice());
     state.overrides  = loadJSON(LS_OVERRIDES, {});
+    initTabs();
     initEvents();
 
     var savedRaw = loadJSON(LS_RAW, null);
