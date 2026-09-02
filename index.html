@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GA Support · Boss Table</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎫</text></svg>">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap" id="dropZone">
+
+  <div class="top">
+    <div class="brand">
+      <div class="mark">🎫</div>
+      <div>
+        <h1>GA SUPPORT · <span class="gold">BOSS TABLE</span><span class="pill">v1 · brez skupne baze</span></h1>
+        <div class="sub" id="loadMeta">Ni naloženih podatkov.</div>
+      </div>
+    </div>
+    <div class="load-panel">
+      <button class="btn primary" id="loadBtn">⭱ Naloži izvoz (.csv / .xlsx)</button>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv">
+      <div class="load-meta">Vse ostane v tem brskalniku — nič se ne pošilja nikamor.</div>
+    </div>
+  </div>
+
+  <div class="summary" id="summaryStrip"></div>
+
+  <div class="card">
+    <h2>Ticketi</h2>
+
+    <div class="toolbar">
+      <div class="search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="globalSearch" placeholder="Iskanje po naslovu, partnerju, kategoriji, ID… (več besed = IN)">
+      </div>
+      <div class="group-control">
+        Grupiraj po
+        <select id="groupBy">
+          <option value="none">Brez</option>
+          <option value="partner">Partner</option>
+          <option value="category">Kategorija</option>
+          <option value="day">Datum (dan)</option>
+          <option value="week">Datum (teden)</option>
+          <option value="month">Datum (mesec)</option>
+        </select>
+      </div>
+      <div class="add-cat">
+        <input type="text" id="newCatInput" placeholder="nova kategorija…">
+        <button class="btn" id="addCatBtn">+ Dodaj</button>
+      </div>
+    </div>
+
+    <div class="table-shell">
+      <table>
+        <colgroup>
+          <col class="c-id"><col class="c-status"><col class="c-subject"><col class="c-partner">
+          <col class="c-category"><col class="c-next"><col class="c-created"><col class="c-updated">
+          <col class="c-age"><col class="c-idle">
+        </colgroup>
+        <thead>
+          <tr class="labels" id="headerRow"></tr>
+          <tr class="filters" id="filterRow"></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="footer-note">
+      <span>Prikazanih <b id="shownCount">0</b> od <b id="totalCount">0</b> ticketov</span>
+      <span>Ročni popravki (kategorija, partner, next action) se shranijo samo v ta brskalnik — glej README za nadgradnjo na deljeno bazo.</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="assets/vendor/xlsx.full.min.js"></script>
+<script src="assets/rules.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
