@@ -19,7 +19,7 @@
     description:["description", "opis", "body", "details", "comment"],
     issueType:  ["issue_type", "issue type", "type", "issuetype"],
     partner:    ["requester", "customer", "requested by", "reporter", "partner", "stranka",
-                 "partner_name", "casino_id", "partner name"],
+                 "partner_name", "casino_id", "casino id", "partner name"],
     partnerSuggestion: ["partner_name_suggestion_for_review"],
     priority:   ["priority", "prioriteta"],
     created:    ["requested", "created", "request date", "created date", "ustvarjen", "created_at"],
